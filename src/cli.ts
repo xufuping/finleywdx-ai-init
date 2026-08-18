@@ -1,10 +1,10 @@
 import { Command } from "commander";
-import { readOwnPackageJson } from "./utils/fs.js";
-import { init } from "./commands/init.js";
-import { log } from "./utils/logger.js";
+import { readPackageManifest } from "./platform/package-files.js";
+import { initializeProject } from "./application/initialize-project.js";
+import { consoleUi } from "./presentation/console.js";
 
 function main(): void {
-  const pkg = readOwnPackageJson();
+  const pkg = readPackageManifest();
   const program = new Command();
 
   program
@@ -16,12 +16,12 @@ function main(): void {
 
   program
     .command("init")
-    .description("在当前目录初始化 Finley 工作流（编排 spec-kit + 铺设增量层 + 合并 AGENTS.md）")
+    .description("在当前目录初始化 Finley 工作基线（准备 spec-kit + 安装工具 + 更新 AGENTS.md）")
     .option(
       "-i, --integration <names>",
       "以逗号分隔指定要安装的 spec-kit integration（默认 cursor-agent,claude,codex,gemini,copilot）",
     )
-    .option("--skip-speckit", "跳过 spec-kit 编排，仅铺设 Finley 增量层")
+    .option("--skip-speckit", "跳过 spec-kit 编排，仅安装 Finley 工具")
     .option("--no-ignore-agent-tools", "不向 specify 传 --ignore-agent-tools（默认会传）")
     .option("--dry-run", "只打印将执行的操作，不真正调用 specify、不写盘")
     .action(async (opts) => {
@@ -33,7 +33,7 @@ function main(): void {
               .filter(Boolean)
           : undefined;
       try {
-        const code = await init({
+        const code = await initializeProject({
           integrations,
           skipSpeckit: opts.skipSpeckit,
           // commander 的 --no-ignore-agent-tools 会把 ignoreAgentTools 置为 false
@@ -42,7 +42,7 @@ function main(): void {
         });
         process.exit(code);
       } catch (err) {
-        log.error(`初始化过程中发生未预期错误：${(err as Error).message}`);
+        consoleUi.error(`初始化过程中发生未预期错误：${(err as Error).message}`);
         process.exit(1);
       }
     });

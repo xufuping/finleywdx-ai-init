@@ -1,7 +1,7 @@
 import { execa, type Options } from "execa";
 
 /** 检测某个命令是否存在于 PATH 中。 */
-export async function commandExists(command: string): Promise<boolean> {
+export async function commandAvailable(command: string): Promise<boolean> {
   const probe = process.platform === "win32" ? "where" : "which";
   try {
     await execa(probe, [command]);
@@ -12,7 +12,7 @@ export async function commandExists(command: string): Promise<boolean> {
 }
 
 /** 运行命令并返回其 stdout（trim 后）；失败返回 null，不抛异常。 */
-export async function tryOutput(
+export async function readCommandOutput(
   command: string,
   args: string[] = [],
 ): Promise<string | null> {
@@ -35,7 +35,7 @@ export interface RunResult {
  * 运行一条命令，继承或捕获输出。永不抛异常——把失败信息封装进 RunResult，
  * 便于上层给出友好的中文报错，而不是静默吞掉。
  */
-export async function run(
+export async function executeCommand(
   command: string,
   args: string[] = [],
   options: Options = {},

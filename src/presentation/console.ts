@@ -1,7 +1,7 @@
 import pc from "picocolors";
 
 /** 统一的中文彩色日志输出。 */
-export const log = {
+export const consoleUi = {
   info(msg: string): void {
     console.log(`${pc.cyan("›")} ${msg}`);
   },

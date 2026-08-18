@@ -1,5 +1,5 @@
-import { commandExists, tryOutput } from "../utils/exec.js";
-import { log } from "../utils/logger.js";
+import { commandAvailable, readCommandOutput } from "../platform/command-runner.js";
+import { consoleUi } from "../presentation/console.js";
 import pc from "picocolors";
 
 interface CheckResult {
@@ -35,8 +35,8 @@ async function checkNode(): Promise<CheckResult> {
 }
 
 async function checkGit(): Promise<CheckResult> {
-  const has = await commandExists("git");
-  const ver = has ? await tryOutput("git", ["--version"]) : null;
+  const has = await commandAvailable("git");
+  const ver = has ? await readCommandOutput("git", ["--version"]) : null;
   return {
     ok: has,
     label: "Git",
@@ -47,12 +47,12 @@ async function checkGit(): Promise<CheckResult> {
 
 async function checkPython(): Promise<CheckResult> {
   // 优先 python3，其次 python
-  const bin = (await commandExists("python3"))
+  const bin = (await commandAvailable("python3"))
     ? "python3"
-    : (await commandExists("python"))
+    : (await commandAvailable("python"))
       ? "python"
       : null;
-  const ver = bin ? await tryOutput(bin, ["--version"]) : null;
+  const ver = bin ? await readCommandOutput(bin, ["--version"]) : null;
   const mm = parseMinor(ver);
   const ok = mm !== null && (mm[0] > 3 || (mm[0] === 3 && mm[1] >= 11));
   return {
@@ -66,8 +66,8 @@ async function checkPython(): Promise<CheckResult> {
 }
 
 async function checkUv(): Promise<CheckResult> {
-  const has = await commandExists("uv");
-  const ver = has ? await tryOutput("uv", ["--version"]) : null;
+  const has = await commandAvailable("uv");
+  const ver = has ? await readCommandOutput("uv", ["--version"]) : null;
   return {
     ok: has,
     label: "uv（spec-kit 依赖）",
@@ -86,8 +86,8 @@ export interface SpecifyStatus {
 
 /** 单独检测 specify CLI（缺失不阻断硬性环境，但会给出安装指引）。 */
 export async function checkSpecify(): Promise<SpecifyStatus> {
-  const available = await commandExists("specify");
-  const version = available ? await tryOutput("specify", ["--version"]) : null;
+  const available = await commandAvailable("specify");
+  const version = available ? await readCommandOutput("specify", ["--version"]) : null;
   return { available, version };
 }
 
@@ -96,8 +96,8 @@ export async function checkSpecify(): Promise<SpecifyStatus> {
  * 清晰的中文安装指引，随后由调用方非零退出。
  * 返回是否全部通过。
  */
-export async function checkEnv(): Promise<boolean> {
-  log.step("步骤 1/4：环境检测");
+export async function inspectEnvironment(): Promise<boolean> {
+  consoleUi.step("阶段 1/4：检查运行环境");
 
   const checks = await Promise.all([
     checkNode(),
@@ -108,16 +108,16 @@ export async function checkEnv(): Promise<boolean> {
 
   for (const c of checks) {
     if (c.ok) {
-      log.success(`${c.label} — ${pc.dim(c.detail)}`);
+      consoleUi.success(`${c.label} - ${pc.dim(c.detail)}`);
     } else {
-      log.error(`${c.label} — ${pc.dim(c.detail)}`);
+      consoleUi.error(`${c.label} - ${pc.dim(c.detail)}`);
     }
   }
 
   const failed = checks.filter((c) => !c.ok);
   if (failed.length > 0) {
     console.log();
-    log.error(`环境检测未通过：缺少 ${failed.length} 项必需依赖。`);
+    consoleUi.error(`环境检测未通过：缺少 ${failed.length} 项必需依赖。`);
     console.log(pc.bold("\n请先安装以下依赖后重试：\n"));
     for (const c of failed) {
       console.log(`${pc.red("•")} ${pc.bold(c.label)}`);
@@ -129,9 +129,9 @@ export async function checkEnv(): Promise<boolean> {
   // specify CLI 检测（软性：缺失给指引，由调用方决定是否继续）
   const specify = await checkSpecify();
   if (specify.available) {
-    log.success(`specify CLI — ${pc.dim(specify.version ?? "已安装")}`);
+    consoleUi.success(`specify CLI - ${pc.dim(specify.version ?? "已安装")}`);
   } else {
-    log.warn("未检测到 spec-kit 的 specify CLI。");
+    consoleUi.warn("未检测到 spec-kit 的 specify CLI。");
     console.log(
       pc.dim(
         "    可用 uv 安装（替换 <tag> 为最新版本，如 v0.12.4）：\n" +
